@@ -1211,6 +1211,32 @@ func NVDefineSpace(rw io.ReadWriter, owner, handle tpmutil.Handle, ownerAuth, au
 	return err
 }
 
+// NVDefineSpaceNew accepts NVPublic structure and is more flexible.
+func NVDefineSpaceNew(rw io.ReadWriter, owner tpmutil.Handle, ownerAuth, authVal string, pubInfo NVPublic) error {
+	ha, err := tpmutil.Pack(owner)
+	if err != nil {
+		return err
+	}
+	auth, err := encodeAuthArea(AuthCommand{Session: HandlePasswordSession, Attributes: AttrContinueSession, Auth: []byte(ownerAuth)})
+	if err != nil {
+		return err
+	}
+	publicInfo, err := tpmutil.Pack(pubInfo)
+	if err != nil {
+		return err
+	}
+	params, err := tpmutil.Pack(tpmutil.U16Bytes(authVal), tpmutil.U16Bytes(publicInfo))
+	if err != nil {
+		return err
+	}
+	cmd, err := concat(ha, auth, params)
+	if err != nil {
+		return err
+	}
+	_, err = runCommand(rw, TagSessions, CmdDefineSpace, tpmutil.RawBytes(cmd))
+	return err
+}
+
 func encodeWriteNV(owner, handle tpmutil.Handle, authString string, data tpmutil.U16Bytes, offset uint16) ([]byte, error) {
 	auth, err := encodeAuthArea(AuthCommand{Session: HandlePasswordSession, Attributes: AttrContinueSession, Auth: []byte(authString)})
 	if err != nil {
